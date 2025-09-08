@@ -74,18 +74,6 @@ def calcEandB(q, rg, rret, vret, aret):
     return E, n.cross(E) / c
 
 
-def get_ExEyBzn(rg, tm, t, rp, vp, ap):
-    """Get normalized Ex, Ey, Bz for given grid and particular trajectory.
-
-    Just a combination of get_pret, calcEandB, and normalization by E,
-    used for plotting.
-    """
-    tret, rpret, vpret, apret = get_pret(rg, tm, t, rp, vp, ap)
-    E, B = calcEandB(-e.si, rg, rpret, vpret, apret)
-    En = E.norm()
-    return (E.x / En).to_value(1), (E.y / En).to_value(1), (B.z * c / En).to_value(1)
-
-
 # Define particle trajectory (done classically, i.e., not quite correct).
 tr = 0.5**0.5 * t / tacc
 ap = np.exp(-tr**2) / (np.sqrt(np.pi) * tacc.to("s")) * vlim
@@ -96,8 +84,12 @@ rp = (v0 * t.to("s")
 # Calculate interpolated positions and fields.
 rp_tm = interp(tm, t, rp)
 _tm = tm.reshape((-1,) + (1,)*rg.ndim) if tm.ndim == 1 else tm
-Exn, Eyn, Bzn = get_ExEyBzn(rg, _tm, t, rp, vp, ap)
-
+tret, rpret, vpret, apret = get_pret(rg, _tm, t, rp, vp, ap)
+E, B = calcEandB(-e.si, rg, rpret, vpret, apret)
+# Normalized quantities for plotting.
+En = E.norm()
+Exn, Eyn = (E.x / En).to_value(1), (E.y / En).to_value(1)
+Bzn = (B.z * c / En).to_value(1)
 
 # Make plot or animation.
 quantity_support()
