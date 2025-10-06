@@ -29,7 +29,7 @@ def interp(tg, t, x):
 
 # b = [[5]] * u.um
 v_e = np.sqrt(const.k_B*1e4*u.K/const.m_e).to("km/s")
-bmin1 = (4*const.e.esu**2/(np.pi*const.m_e*v_e**2)).to(b.unit)
+bmin = (4*const.e.esu**2/(np.pi*const.m_e*v_e**2)).to("um")
 # Upper limit seems reasonable for n_e = 1/cm3; linear approx good.
 # b = np.geomspace(5 * u.nm, 5 * u.mm, 7)[:, np.newaxis]
 b = np.geomspace(bmin, 1000 * bmin, 7)[:, np.newaxis]
@@ -88,9 +88,16 @@ def h1prime(nu, z):
 factor_check = 2/(3*np.pi) * const.e.esu**2 / const.c**3 * (q_e*q_ion/const.e.si**2)
 factor = 2/(3*np.pi) * alpha / const.c**3
 assert np.isclose(factor, factor_check)
-dedom = (factor * (power(axom) + power(ayom))).to("aJ/Hz")
+dedomx = (factor * power(axom)).to("aJ/Hz")
+dedomy = (factor * power(ayom)).to("aJ/Hz")
+dedom = dedomx + dedomy
 dedoms = dedom * b * dom[:1] / dom
 ax1.semilogx(om.T, dedoms.T)
+
+# Show x, y of middle one
+i = om.shape[0] // 2
+ax1.semilogx(om[i], dedomx[i] * b[i] * dom[0] / dom [i], 'k:')
+ax1.semilogx(om[i], dedomy[i] * b[i] * dom[0] / dom [i], 'k:')
 
 _om = np.geomspace(om.min(), om.max(), 1001)
 dedomi = interp(_om, om, dedoms)
