@@ -9,7 +9,7 @@ broadcasting by M. H. van Kerkwijk
 """
 # Would be nice to use CartesianRepresentation for vectors, but
 # unfortunately, it is quite a lot slower.
-from dataclasses import dataclass
+from dataclasses import dataclass, replace
 
 import numpy as np
 import astropy.constants as cst
@@ -38,7 +38,7 @@ def gammau(u, keepdims=False):
     return (1 + norm2(u, keepdims=keepdims) / c2) ** 0.5
 
 
-# We define the particle class
+# Define the particle class
 @dataclass
 class Particle:
     """Particle properties.
@@ -75,8 +75,8 @@ class Particle:
         1 / √(1-(v/c)²) the usual lorentz factor, q the charge, and
         E and B the electric and magnetic fields.
 
-        Implementation follows description in Ripperda et al.,
-        2018ApJS..235...21R, §2.1.1.
+        Implementation follows description in §2.1.1 of Ripperda et al.,
+        2018ApJS..235...21R (R+18 below).
 
         Parameters
         ----------
@@ -93,38 +93,41 @@ class Particle:
             Updated version (note that update is done in-place).
 
         """
-        if callable(E) or callable(B):
-            rh = self.r + 0.5 * dt * self.v
-            tp = self.__class__(self.mass, self.charge, rh, self.v)
-            if callable(E):
-                E = E(tp)
-            if callable(B):
-                B = B(tp)
+        # Compute constant q*dt/(2m) found in many equations.
+        factor = 0.5 * self.charge * dt / self.mass
 
-        # Constant part in equations.
-        factor = 0.5 * dt * self.charge / self.mass
+        # First half time step on position per R+18 Eq. 6.
+        self.r += 0.5 * dt * self.v
 
-        # Initial spatial part of the 4-velocity
+        # If E or B are functions, evaluate them at the half time step position.
+        if callable(E):
+            E = E(self)
+        if callable(B):
+            B = B(self)
+
+        # Get previous timestep's u.
         u_old = self.v * gamma(self.v, keepdims=True)
-        # Apply half the electric field part (if present)
-        u_m = u_old + E * factor if E is not None else u_old
-        gamma_m = gammau(u_m, keepdims=True)
 
+        # Apply first half the electric field part (if present).
+        u_m = u_old + E * factor if E is not None else u_old  # R+18, Eq. 10
+
+        # Gamma cannot change in applying B, so gamma_m=gamma_p=gamma_mid.
+        gamma_mid = gammau(u_m, keepdims=True)  # paragraph after R+18, Eq. 12
+
+        # Apply magnetic field contribution.
         if B is not None:
-            # Rotate speed according to magnetic field
-            t = B * factor / gamma_m
+            # Rotate velocity according to magnetic field.
+            t = B * factor / gamma_mid  # paragraph after R+18, Eq. 12
             s = 2 * t / (1 + norm2(t, keepdims=True))
-            u_p = u_m + np.cross(u_m + np.cross(u_m, t), s)
+            u_p = u_m + np.cross(u_m + np.cross(u_m, t), s)  # R+18, Eq. 11
+
         else:
             u_p = u_m
 
-        # Add second half of the electric field part
-        u_new = u_p + E * factor if E is not None else u_p
-
-        # Calculate average 3-velocity for position update.
-        vav = (u_old + u_new) / (2 * gamma_m)
-
-        # Update position and velocity inplace.
-        self.r += dt * vav
-        self.v = u_new / gamma_m
+        # Add second half of the electric field part.
+        u_new = u_p + E * factor if E is not None else u_p  # R+18, Eq. 12
+        # Use this to calculate new velocity v.
+        self.v = u_new / gammau(u_new, keepdims=True)
+        # Second half time step on position per R+18, Eq. 8
+        self.r += 0.5 * dt * self.v
         return self
