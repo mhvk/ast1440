@@ -1,7 +1,7 @@
 """Bremsstralung for 1 particle.
 
 Calculate explicitly given hyperbolic trajectory, following Pad p.296.
-Cannot yet reproduce the integration with the Hankel functions yet.
+Cannot yet reproduce the integration with the Hankel functions.
 """
 import astropy.units as u
 import astropy.constants as const
@@ -29,7 +29,7 @@ def interp(tg, t, x):
 
 # b = [[5]] * u.um
 v_e = np.sqrt(const.k_B*1e4*u.K/const.m_e).to("km/s")
-bmin = (4*const.e.esu**2/(np.pi*const.m_e*v_e**2)).to("um")
+bmin = (4*const.e.si**2/(4*np.pi*const.eps0*np.pi*const.m_e*v_e**2)).to("um")
 # Upper limit seems reasonable for n_e = 1/cm3; linear approx good.
 # b = np.geomspace(5 * u.nm, 5 * u.mm, 7)[:, np.newaxis]
 b = np.geomspace(bmin, 1000 * bmin, 7)[:, np.newaxis]
